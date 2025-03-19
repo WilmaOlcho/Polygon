@@ -15,6 +15,7 @@ class Node:
     def __hash__(self):
         return hash((self.x, self.y))
     
+    @property
     def pos(self):
         return (self.x, self.y)
     
@@ -29,7 +30,7 @@ class Line:
         b = 0 
         if self.x1 == self.x2:
             a = None
-            b = None
+            b = 0
             self.length = abs(self.y1-self.y2)
         elif self.y1 == self.y2:
             b = self.y1
@@ -81,42 +82,51 @@ class Polygon:
         self.polygons = []
         self.closed = False
 
-    def add_node(self, x, y):
+    def add_node(self, x:float, y:float):
+        """Add a node to the polygon."""
         node = Node(x, y)
         if node not in self.nodes:
             self.nodes.append(node)
 
-    def point_in_polygon(self, x, y):
+    def point_in_polygon(self, x, y) -> bool:
+        """Check if the point is inside the polygon."""
         for triangle in self.polygons:
             if self.point_in_triangle(x, y, triangle):
                 return True
         return False
     
-    def point_in_triangle(self, x, y, triangle:tuple[Node, Node, Node]):
+    def point_in_triangle(self, x, y, triangle:tuple[Node, Node, Node]) -> bool:
+        """Check if the point is inside the triangle."""
         a, b, c = triangle
         point = Node(x, y)
-        d1 = self.sign(point, a, b)
-        d2 = self.sign(point, b, c)
-        d3 = self.sign(point, c, a)
-        has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0)
-        has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
-        return not (has_neg and has_pos)
-        
-    def sign(self, p1:Node, p2:Node, p3:Node):
-        return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y)
+        directions = [
+            self.direction(point, a, b),
+            self.direction(point, b, c),
+            self.direction(point, c, a)]
+        neg = not any([direction < 0 for direction in directions])
+        pos = not any([direction > 0 for direction in directions])
+        return neg or pos
     
-    def purge(self):
-        self.lines = []
-        self.edges = []
-        self.closed = False
+    def select_triangle(self, x, y) -> tuple[Node, Node, Node]|None:
+        """Select the triangle that contains the point."""
+        for triangle in self.polygons:
+            if self.point_in_triangle(x, y, triangle):
+                return triangle
+        return None
 
-    def close(self):
-        self.purge()
-        self.closed = True
+    def remove_node(self):
+        """Remove the last node from the polygon."""
+        if self.nodes:
+            self.nodes.pop()
 
+    def create_edges(self):
+        """Create the edges of the polygon from existing nodes."""
         for i, node in enumerate(self.nodes):
             line = Line(node, self.nodes[i + 1] if i < len(self.nodes) - 1 else self.nodes[0])
             self.edges.append(line)
+
+    def connect_nodes(self):
+        """Connect the nodes with lines that do not intersect."""
         for node in self.nodes:
             nodes = self.nodes.copy()
             while nodes:
@@ -128,21 +138,29 @@ class Polygon:
                     if not any([self.lines_crossing(line, line_) for line_ in [*self.lines, *self.edges]]):
                         self.lines.append(line)
 
+    def winding_number(self, node:Node)->float:
+        """Calculate the winding number."""
+        winding_angle = 0
+        for i in range(len(self.nodes)):
+            start = i
+            end = (start + 1) if i < len(self.nodes)-1 else 0
+            angle = self.angle(self.nodes[start], node, self.nodes[end])
+            direction = self.direction(self.nodes[start], node, self.nodes[end])
+            if direction > 0: angle = -angle
+            winding_angle+= angle
+        return round(winding_angle, 2)
+
+    def remove_lines_outside_polygon(self):
+        """Remove lines that are outside the polygon."""
         for line in self.lines.copy():
             halfpoint = Node((line.x1+line.x2)/2, (line.y1+line.y2)/2)
-            overall_angle = 0
-            for i, node in enumerate(self.nodes):
-                start = i
-                end = (start + 1) if i < len(self.nodes)-1 else 0
-                angle = self.angle(self.nodes[start], halfpoint, self.nodes[end])
-                angle_direction = self.angle_direction( self.nodes[start], halfpoint,self.nodes[end])
-                if angle_direction: angle = -angle
-                overall_angle+= angle
-            overall_angle = round(overall_angle, 2)
-            if round(abs(overall_angle/360),2) < 1:
+            winding_number = self.winding_number(halfpoint)
+            if round(abs(winding_number/360),2) < 1:
                 self.lines.remove(line)
                 continue
-        
+    
+    def divide_to_triangles(self):
+        """Divide the polygon to triangles."""
         nodes = self.nodes.copy()
         lines = [*self.lines.copy(), *self.edges.copy()]
         while len(nodes) >= 3:
@@ -166,22 +184,19 @@ class Polygon:
             else:
                 nodes_shift = [*nodes[1:], node]
                 nodes = nodes_shift
-                
 
-    @lru_cache(maxsize=None)
-    def above_line(self, node, line):
-        if line.a*node[0]+line.b > node[1]:
-            return True
-        return False
-    
-    @lru_cache(maxsize=None)
-    def right_of_line(self, node, line):
-        if line.a*node[0]+line.b < node[1]:
-            return True
-        return False
+    def close(self):
+        """Close the polygon."""
+        assert len(self.nodes) >= 3, "Polygon must have at least 3 nodes."
+        self.create_edges()
+        self.connect_nodes()
+        self.remove_lines_outside_polygon()
+        self.divide_to_triangles()
+        self.closed = True
 
     @lru_cache(maxsize=None)
     def angle(self, node1:Node, node2:Node, node3:Node)->float:
+        """Calculate the angle between three nodes. Node2 as the vertex."""
         A = Line(node1, node2).length
         B = Line(node2, node3).length
         C = Line(node1, node3).length
@@ -189,25 +204,22 @@ class Polygon:
         return acos(cosc) * 180/pi
     
     @lru_cache(maxsize=None)
-    def angle_direction(self, node1:Node, node2:Node, node3:Node) -> bool: # True = CW, False = CCW
+    def direction(self, node1:Node, node2:Node, node3:Node) -> float: # CW > 0, CCW <= 0
+        """Calculate the side of node2 using nodes 1 and 3 as symmetry line points."""
         vector1 = node1.x-node2.x, node1.y-node2.y
         vector2 = node3.x-node2.x, node3.y-node2.y
         cross = vector1[0]*vector2[1]-vector1[1]*vector2[0]
-        if cross > 0:
-            return True
-        return False
+        return cross
 
     @lru_cache(maxsize=None)
     def lines_crosspoint(self, line1:Line, line2:Line)->Node|None:
-        if line1.a is None and line2.a is not None:
-            if line2.a is None:
-                return None
-            x = line1.x1
-            y = line2.a*x+line2.b
-        elif line2.a is None and line1.a is not None:
-            x = line2.x1
-            y = line1.a*x+line1.b
-        elif line1.a == line2.a and line1.b == line2.b:
+        """Calculate the crosspoint of two lines."""
+        lines = [line1, line2]
+        if any([line.a is None for line in lines]) and line1.a != line2.a: # one horizontal line case
+            if line1.a is None: lines = lines[::-1]
+            y = lines[0].b
+            x = (y-lines[1].b)/lines[1].a
+        elif line1.a == line2.a and line1.b == line2.b: # same line case
             halfpoint_line1 = Node((line1.x1+line1.x2)/2, (line1.y1+line1.y2)/2)
             halfpoint_line2 = Node((line2.x1+line2.x2)/2, (line2.y1+line2.y2)/2)
             intersection = Line(halfpoint_line1, halfpoint_line2)
@@ -215,14 +227,15 @@ class Polygon:
                 x, y = ((intersection.x1+intersection.x2)/2, (intersection.y1+intersection.y2)/2)
             else:
                 return None
-        elif line1.a == line2.a:
+        elif line1.a == line2.a: # parallel line case
             return None
-        else:
+        else: # normal case
             x = (line2.b-line1.b)/(line1.a-line2.a)
             y = line1.a*x+line1.b
         return Node(x, y)
     
     def lines_crossing(self, line1:Line, line2:Line)->bool:
+        """Check if two lines are crossing."""
         lines = [line1, line2]
         crosspoint = self.lines_crosspoint(*lines)
         if crosspoint is None:
@@ -231,8 +244,6 @@ class Polygon:
             return True
         return False
     
-    def fill(self):
-        pass
-
     def is_inside(self, x, y):
+        """Check if the point is inside the polygon."""
         return self.point_in_polygon(x, y)

@@ -23,19 +23,23 @@ class Window:
         pygame.display.update()
 
     def draw_polygon(self,polygon):
+        cursor = pygame.mouse.get_pos()
         if not polygon.closed:
             for line in polygon.lines:
                 pygame.draw.line(self.window, (255,255,255), *line)
             for i in range(len(polygon.nodes)):
                 if i < len(polygon.nodes) - 1:
-                    pygame.draw.line(self.window, self.color, polygon.nodes[i].pos(), polygon.nodes[i + 1].pos(),2)
+                    pygame.draw.line(self.window, self.color, polygon.nodes[i].pos, polygon.nodes[i + 1].pos,2)
                 else:
-                    pygame.draw.line(self.window, self.color, polygon.nodes[i].pos(), pygame.mouse.get_pos(), 2)
-                    pygame.draw.line(self.window, self.color, polygon.nodes[0].pos(), pygame.mouse.get_pos(), 1)
+                    pygame.draw.line(self.window, self.color, polygon.nodes[i].pos, cursor, 2)
+                    pygame.draw.line(self.window, self.color, polygon.nodes[0].pos, cursor, 1)
         else:
             for triangle in polygon.polygons:
-                triangle = [node.pos() for node in triangle]
-                pygame.draw.polygon(self.window, self.color, triangle, 0)
+                color = self.color
+                if triangle == polygon.select_triangle(*cursor):
+                    color = (172, 172, 0)
+                triangle = [node.pos for node in triangle]
+                pygame.draw.polygon(self.window, color, triangle, 0)
                 pygame.draw.polygon(self.window, (172,172,0), triangle, 1)
 
     def clear(self):
