@@ -106,7 +106,27 @@ class Polygon:
                 triangle = [node.pos() for node in triangle]
                 pygame.draw.polygon(window, self.color, triangle, 0)
                 pygame.draw.polygon(window, (172,172,0), triangle, 1)
+            text = "INSIDE" if self.is_inside(*pygame.mouse.get_pos()) else "OUTSIDE"
+            window.blit(pygame.font.SysFont("Arial", 20).render(text, True, (255,255,255)), (10, 10))
 
+    def point_in_polygon(self, x, y):
+        for triangle in self.polygons:
+            if self.point_in_triangle(x, y, triangle):
+                return True
+    
+    def point_in_triangle(self, x, y, triangle:tuple[Node, Node, Node]):
+        a, b, c = triangle
+        point = Node(x, y)
+        d1 = self.sign(point, a, b)
+        d2 = self.sign(point, b, c)
+        d3 = self.sign(point, c, a)
+        has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0)
+        has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
+        return not (has_neg and has_pos)
+        
+    def sign(self, p1:Node, p2:Node, p3:Node):
+        return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y)
+    
     def purge(self):
         self.lines = []
         self.edges = []
@@ -237,13 +257,14 @@ class Polygon:
         pass
 
     def is_inside(self, x, y):
-        pass
-
+        return self.point_in_polygon(x, y)
 
 class Window:
     def __init__(self):
         self.width = 800
         self.height = 600
+        pygame.init()
+
         self.window = pygame.display.set_mode((self.width, self.height))#, pygame.FULLSCREEN)
         pygame.display.set_caption("Polymorph")
         self.polygons = []
