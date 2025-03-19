@@ -38,7 +38,7 @@ class Polymorph:
         for node in self.nodes:
             for second_node in self.nodes:
                 if node == second_node: continue
-                line = tuple([node, second_node])
+                line = (node, second_node)
                 if line not in self.lines:
                     if not any([self.lines_crossing(line, line_) for line_ in self.lines]):
                         self.lines.append(line)
@@ -136,12 +136,15 @@ class Polymorph:
         if crosspoint is None:
             return False
         x, y = crosspoint
-        if (line1[0][0] <= x <= line1[1][0] or line1[1][0] <= x <= line1[0][0]) and \
-           (line2[0][0] <= x <= line2[1][0] or line2[1][0] <= x <= line2[0][0]):
-            if x == line1[0][0] and y == line1[0][1]: return False
-            if x == line1[1][0] and y == line1[1][1]: return False
-            if x == line2[0][0] and y == line2[0][1]: return False
-            if x == line2[1][0] and y == line2[1][1]: return False
+
+        if (min(line1[0][0],line1[1][0])+1 < x < max(line1[0][0],line1[1][0])-1) and \
+           (min(line2[0][0],line2[1][0])+1 < x < max(line2[0][0],line2[1][0])-1) and \
+            (min(line1[0][1],line1[1][1])+1 < y < max(line1[0][1],line1[1][1])-1) and \
+            (min(line2[0][1],line2[1][1])+1 < y < max(line2[0][1],line2[1][1])-1):
+            if x in [line1[0][0], line1[1][0]] and y in [line1[0][1], line1[1][1]]:
+                return False
+            if x in [line2[0][0], line2[1][0]] and y in [line2[0][1], line2[1][1]]:
+                return False
             return True
         return False
     
