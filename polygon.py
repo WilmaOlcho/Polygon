@@ -216,7 +216,7 @@ class Polygon:
         """Calculate the crosspoint of two lines."""
         lines = [line1, line2]
         if any([line.a is None for line in lines]) and line1.a != line2.a: # one horizontal line case
-            if line1.a is None: lines = lines[::-1]
+            if line2.a is None: lines = lines[::-1]
             y = lines[0].b
             x = (y-lines[1].b)/lines[1].a
         elif line1.a == line2.a and line1.b == line2.b: # same line case
@@ -247,3 +247,9 @@ class Polygon:
     def is_inside(self, x, y):
         """Check if the point is inside the polygon."""
         return self.point_in_polygon(x, y)
+
+    def __eq__(self, value:tuple):
+        return self.is_inside(*value) 
+    
+    def __hash__(self):
+        return hash(tuple(self.nodes))
