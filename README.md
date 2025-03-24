@@ -5,12 +5,18 @@ This is my attempt to differentiate if the point is inside polygon or not.
 After initialisation, the polygon is created by adding vertices using "add_node(int|float x, int|float y)" method.
 When all vertices are added, we can close our polygon using "close()" method.
 
-At this moment, at first the edges od the polygon are created, then each node is connected to every other, where the line between those is not intersecting with any another line.
+>The polygon is closed in few steps:
+>
+>1. Creating external edges.
+>2. Connecting nodes with lines that are not intersecting with existing ones.
+>3. Removing lines outside external edges.
+>4. Dividing polygon into triangles which are easier to manage.
 
-Next, the lines that are created outside the edges created in the beggining are removed and now the polygon is virtually divided into triangles.
-
-In the end, the verticle where are only two lines connected to it is selected. This vertice is blacklisted for the next iteration, same for those two lines, and the three points given by those are added to the list of triangles.
-This last operation is repeated for every each vertice that is connected with only two lines (except blacklisted ones).
+The most difficult is step 3. Every line except edges is judged if it is outside the closed shape. To do that, the point in the middle of each one is selected and checked if the polygon's nodes are turning around it at least one time.  
+For every node, there is angle and direction calculated with three points given (n-node, checked point, n+1-node), with checked point as the vertice.  
+If the direction is to the left in regards to cross product of the vectors based on given points, the angle is substracted from the result and added otherwise.  
+|Angle| >= 360 means that there was at least one full rotation around the selected point and it is inside the polygon.  
+The lines which halfpoint's windind number is 0 are removed, becouse those are outside the polygon.
 
 Afer closing the polygon, it is possible to check every point if it is inside or outside the polygon using "point_in_polygon(int|float x, int|float y) method". The triangle which is having given point in the inside can be returned by "select_triangle(int|float x, int|float y)" method.
 
@@ -50,7 +56,6 @@ The output will be:
     0000000000
     0000000000
     0000000000
-
 
 The polygons can be created independently:
 
