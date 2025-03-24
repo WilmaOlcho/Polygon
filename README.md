@@ -92,6 +92,6 @@ The result will be:
 The main.py represents the example where the polygons can be drawn and checked using mouse.
 The yellow triangle is the one where is the mouse cursor.
 
-![Polygons drawn using a mouse](https://raw.githubusercontent.com/wilmaOlcho/polygon/master/polygons.png)
+![Polygons drawn using a mouse](/images/polygons.png)
 
 The main.py requires pygame to run
